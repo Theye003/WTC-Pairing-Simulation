@@ -3,7 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import itertools
 
-# ------------------ Neue WTC Simulation für Teamgröße 5 ------------------
+# ------------------ WTC Simulation für 5 Spieler ------------------
 
 def simulate_wtc_pairings_team5(matrix):
     results = []
@@ -51,32 +51,60 @@ def simulate_wtc_pairings_team5(matrix):
 # ------------------ Streamlit App ------------------
 
 st.set_page_config(page_title="WTC Pairing Simulator", layout="wide")
-st.title("✅ WTC Pairing Simulator – Teamgröße 5 (fest)")
+st.title("🎯 WTC Pairing Simulator – Teamgröße 5 (mit Namenswahl)")
 
 st.markdown("""
-Diese Version simuliert alle möglichen Pairings für zwei 5er-Teams im WTC-System.  
-Matrix und Teamgröße sind fest eingebaut – einfach auf „Simulation starten“ klicken!
+Gib deinen 5 Armeenamen und die 5 gegnerischen Armeen unten ein.  
+Dann ergänze die Matrix – oder nutze den Zufallstest.
 """)
 
-# Feste Matrix (gültig)
-matrix = pd.DataFrame(
-    {
-        "Enemy1": [12, 10, 15, 13, 9],
-        "Enemy2": [9, 12, 13, 11, 10],
-        "Enemy3": [13, 14, 11, 12, 13],
-        "Enemy4": [11, 13, 12, 14, 10],
-        "Enemy5": [10, 11, 13, 9, 12]
-    },
-    index=["Army1", "Army2", "Army3", "Army4", "Army5"]
-)
+# Eingabe der Namen
+st.subheader("🔤 Namen eingeben")
 
-st.subheader("📊 Eingesetzte Matrix (Erwartungswerte):")
+col1, col2 = st.columns(2)
+with col1:
+    our_names = [st.text_input(f"Unsere Armee {i+1}", f"Army{i+1}") for i in range(5)]
+with col2:
+    their_names = [st.text_input(f"Gegner {i+1}", f"Enemy{i+1}") for i in range(5)]
+
+# Matrix bearbeiten
+st.subheader("📊 Erwartungswert-Matrix")
+
+use_random = st.checkbox("✅ Testwerte automatisch füllen")
+
+if use_random:
+    matrix = pd.DataFrame(
+        [[round(8 + 6 * i / 4 + j % 3) for j in range(5)] for i in range(5)],
+        index=our_names,
+        columns=their_names
+    )
+    st.success("Zufallsmatrix generiert")
+else:
+    empty_matrix = pd.DataFrame(
+        [["" for _ in range(5)] for _ in range(5)],
+        index=our_names,
+        columns=their_names
+    )
+    matrix = st.data_editor(empty_matrix, use_container_width=True)
+    try:
+        matrix = matrix.applymap(lambda x: float(x) if x != "" else None)
+    except:
+        st.error("Fehler beim Parsen der Matrix – bitte nur Zahlen eingeben.")
+        st.stop()
+
+# Matrix anzeigen
 st.dataframe(matrix.style.background_gradient(axis=None, cmap="RdYlGn", low=0.2, high=0.8))
 
+# Check auf Lücken
+if matrix.isnull().values.any():
+    st.warning("❗ Bitte alle Felder in der Matrix ausfüllen.")
+    st.stop()
+
+# Simulation starten
 top_n = st.slider("Wie viele Top-Pairings anzeigen?", 1, 50, 10)
 
 if st.button("🚀 Simulation starten"):
-    with st.spinner("Berechne alle legitimen Pairings nach WTC-System..."):
+    with st.spinner("Berechne alle legitimen Pairings..."):
         results = simulate_wtc_pairings_team5(matrix)
 
     if not results:
