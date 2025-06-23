@@ -4,7 +4,24 @@ import matplotlib.pyplot as plt
 import itertools
 import numpy as np
 
-# ------------------ WTC Simulation für 5 Spieler ------------------
+# ------------------ Matrix-Parser ------------------
+
+def parse_cell(value):
+    if isinstance(value, str) and "-" in value:
+        try:
+            parts = value.strip().split("-")
+            return (float(parts[0]) + float(parts[1])) / 2
+        except:
+            return None
+    try:
+        return float(value)
+    except:
+        return None
+
+def parse_matrix(df):
+    return df.applymap(parse_cell)
+
+# ------------------ WTC Simulation (Teamgröße 5) ------------------
 
 def simulate_wtc_pairings_team5(matrix):
     results = []
@@ -49,18 +66,18 @@ def simulate_wtc_pairings_team5(matrix):
     results.sort(key=lambda x: x[1], reverse=True)
     return results
 
-# ------------------ Streamlit App ------------------
+# ------------------ Streamlit UI ------------------
 
 st.set_page_config(page_title="WTC Pairing Simulator", layout="wide")
-st.title("🎯 WTC Pairing Simulator – Teamgröße 5 mit Namen")
+st.title("🎯 WTC Pairing Simulator – mit CSV-Import")
 
 st.markdown("""
-Gib deine 5 Armeenamen und die 5 gegnerischen Armeen ein.  
-Fülle dann die Matrix manuell oder lasse Testwerte automatisch generieren.
+Gib deine Armeenamen ein oder lade eine Matrix als CSV hoch.  
+Die Matrix muss 5x5 groß sein und kann Werte oder Bereiche wie `9-12` enthalten.
 """)
 
 # Eingabe der Namen
-st.subheader("🔤 Namen eingeben")
+st.subheader("🔤 Armee- & Gegnernamen")
 
 col1, col2 = st.columns(2)
 with col1:
@@ -68,41 +85,50 @@ with col1:
 with col2:
     their_names = [st.text_input(f"Gegner {i+1}", f"Enemy{i+1}") for i in range(5)]
 
-# Matrix bearbeiten
-st.subheader("📊 Erwartungswert-Matrix")
+# Datei-Upload
+uploaded_file = st.file_uploader("📥 CSV-Datei hochladen", type=["csv"])
 
-use_random = st.checkbox("✅ Testwerte automatisch füllen")
-
-if use_random:
-    np.random.seed(42)
-    matrix = pd.DataFrame(
-        np.random.randint(4, 16, size=(5, 5)),
-        index=our_names,
-        columns=their_names
-    )
-    st.success("Zufallsmatrix generiert")
-else:
-    empty_matrix = pd.DataFrame(
-        [["" for _ in range(5)] for _ in range(5)],
-        index=our_names,
-        columns=their_names
-    )
-    matrix = st.data_editor(empty_matrix, use_container_width=True)
+if uploaded_file:
     try:
-        matrix = matrix.applymap(lambda x: float(x) if x != "" else None)
-    except:
-        st.error("Fehler beim Parsen der Matrix – bitte nur Zahlen eingeben.")
+        raw_df = pd.read_csv(uploaded_file, index_col=0)
+        matrix = parse_matrix(raw_df)
+        our_names = list(matrix.index)
+        their_names = list(matrix.columns)
+        st.success("✅ CSV erfolgreich geladen.")
+    except Exception as e:
+        st.error(f"Fehler beim Einlesen der CSV: {e}")
         st.stop()
 
-# Matrix anzeigen
-st.dataframe(matrix.style.background_gradient(axis=None, cmap="RdYlGn", low=0.2, high=0.8))
+else:
+    st.subheader("📊 Matrix erstellen")
+    use_random = st.checkbox("✅ Zufällige Matrix füllen")
 
-# Check auf Lücken
+    if use_random:
+        np.random.seed(42)
+        matrix = pd.DataFrame(
+            np.random.randint(4, 16, size=(5, 5)),
+            index=our_names,
+            columns=their_names
+        )
+        st.success("Zufallsmatrix generiert")
+    else:
+        empty_matrix = pd.DataFrame(
+            [["" for _ in range(5)] for _ in range(5)],
+            index=our_names,
+            columns=their_names
+        )
+        matrix = st.data_editor(empty_matrix, use_container_width=True)
+        matrix = parse_matrix(matrix)
+
+# Vorschau
+st.subheader("📈 Matrix-Vorschau")
 if matrix.isnull().values.any():
-    st.warning("❗ Bitte alle Felder in der Matrix ausfüllen.")
+    st.warning("❗ Bitte alle Felder korrekt ausfüllen.")
     st.stop()
 
-# Simulation starten
+st.dataframe(matrix.style.background_gradient(axis=None, cmap="RdYlGn", low=0.2, high=0.8))
+
+# Simulation
 top_n = st.slider("Wie viele einzigartige Top-Pairings anzeigen?", 1, 50, 10)
 
 if st.button("🚀 Simulation starten"):
@@ -112,10 +138,9 @@ if st.button("🚀 Simulation starten"):
     if not results:
         st.error("❌ Keine gültigen Pairings gefunden.")
     else:
-        # Nur inhaltlich unterschiedliche Pairings durch Set
+        # Duplikate entfernen
         seen = set()
         unique_results = []
-
         for pairing, score in results:
             key = tuple(sorted((o, t) for o, t in pairing))
             if key not in seen:
@@ -125,7 +150,6 @@ if st.button("🚀 Simulation starten"):
                 break
 
         st.success(f"✅ {len(unique_results)} eindeutige Pairings gefunden.")
-
         st.subheader(f"🏅 Top {len(unique_results)} einzigartige Pairings")
 
         for i, (pairing, score) in enumerate(unique_results, start=1):
@@ -133,7 +157,8 @@ if st.button("🚀 Simulation starten"):
             for o, t in pairing:
                 st.markdown(f"- **{o}** vs **{t}** → `{matrix.loc[o, t]:.1f}`")
 
-        st.subheader("📈 Balkendiagramm der Top Pairings")
+        # Plot
+        st.subheader("📊 Pairing Score Diagramm")
         labels = [" | ".join([f"{o} vs {t}" for o, t in p]) for p, _ in unique_results]
         scores = [s for _, s in unique_results]
         fig, ax = plt.subplots(figsize=(12, 6))
