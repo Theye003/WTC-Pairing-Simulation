@@ -2,8 +2,9 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import itertools
+import numpy as np
 
-# --------- Hilfsfunktionen ---------
+# ------------------ Hilfsfunktionen ------------------
 
 def parse_cell(value):
     if isinstance(value, str) and "-" in value:
@@ -41,7 +42,6 @@ def simulate_wtc_pairings(matrix):
                                 (our_defender, their_choice),
                                 (their_defender, our_choice)
                             ]
-
                             o_used = {our_defender, our_choice}
                             t_used = {their_defender, their_choice}
                             our_left = [a for a in our_rest if a not in o_used]
@@ -59,14 +59,15 @@ def simulate_wtc_pairings(matrix):
     results.sort(key=lambda x: x[1], reverse=True)
     return results
 
-# --------- Streamlit App ---------
+# ------------------ Streamlit App ------------------
 
 st.set_page_config(page_title="WTC Pairing Simulator", layout="wide")
 st.title("🔮 WTC Pairing Simulator")
 
 st.markdown("""
-Wähle die Teamgröße und gib die Matchup-Matrix ein (als Werte oder Spannweiten wie `9-12`).  
-Spaltennamen (Enemy1 …) und Zeilennamen (Army1 …) dürfen nicht geändert werden.
+Wähle die Teamgröße und gib die Matchup-Matrix ein.  
+Du kannst Zahlen (`12`) oder Spannen (`9-13`) eingeben.  
+Spaltennamen (`Enemy1...`) und Zeilennamen (`Army1...`) dürfen nicht verändert werden.
 """)
 
 # Teamgröße
@@ -74,7 +75,7 @@ team_size = st.radio("Teamgröße auswählen:", [3, 5, 8], horizontal=True)
 army_names = [f"Army{i+1}" for i in range(team_size)]
 enemy_names = [f"Enemy{i+1}" for i in range(team_size)]
 
-# Datei-Upload oder manueller Editor
+# CSV Upload oder manuelle Eingabe
 uploaded_file = st.file_uploader("📤 CSV-Datei hochladen (optional)", type="csv")
 
 if uploaded_file:
@@ -84,27 +85,46 @@ if uploaded_file:
     st.dataframe(raw_df)
 else:
     st.subheader("📝 Matrix-Eingabe (manuell)")
-    default_matrix = pd.DataFrame(
-        [["" for _ in range(team_size)] for _ in range(team_size)],
-        index=army_names,
-        columns=enemy_names
-    )
-    edited_matrix = st.data_editor(default_matrix, use_container_width=True)
+
+    autofill = st.checkbox("Testmatrix automatisch ausfüllen")
+
+    if autofill:
+        test_matrix = pd.DataFrame(
+            np.random.randint(5, 20, size=(team_size, team_size)),
+            index=army_names,
+            columns=enemy_names
+        )
+        edited_matrix = st.data_editor(test_matrix, use_container_width=True)
+    else:
+        empty_matrix = pd.DataFrame(
+            [["" for _ in range(team_size)] for _ in range(team_size)],
+            index=army_names,
+            columns=enemy_names
+        )
+        edited_matrix = st.data_editor(empty_matrix, use_container_width=True)
+
     matrix = parse_matrix(edited_matrix)
 
-    # Validierung
-    if not all(name in matrix.index for name in army_names) or not all(name in matrix.columns for name in enemy_names):
-        st.error("❌ Fehler: Bitte verwende die automatischen Namen für Zeilen (Army1…) und Spalten (Enemy1…).")
+    # Validierungs-Checks
+    missing_rows = [name for name in army_names if name not in matrix.index]
+    missing_cols = [name for name in enemy_names if name not in matrix.columns]
+
+    if missing_rows or missing_cols:
+        st.error(f"❌ Matrix unvollständig!\nFehlende Zeilen: {missing_rows}\nFehlende Spalten: {missing_cols}")
         st.stop()
 
-# Matrix-Visualisierung
+    if matrix.isnull().values.any():
+        st.error("❌ Matrix enthält leere oder ungültige Felder. Bitte alles ausfüllen.")
+        st.stop()
+
+# Vorschau
 st.subheader("🎨 Erwartungswert-Matrix mit Farbcodierung")
 styled = matrix.style.background_gradient(axis=None, cmap="RdYlGn", low=0.2, high=0.8)
 st.dataframe(styled, use_container_width=True)
 
 top_n = st.slider("Wie viele Top-Pairings anzeigen?", 1, 50, min(10, team_size * 5))
 
-# Simulation
+# Simulation starten
 if st.button("🚀 Simulation starten"):
     with st.spinner("Berechne alle legitimen WTC-Pairings..."):
         results = simulate_wtc_pairings(matrix)
