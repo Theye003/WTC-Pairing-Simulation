@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import itertools
+import numpy as np
 
 # ------------------ WTC Simulation für 5 Spieler ------------------
 
@@ -51,11 +52,11 @@ def simulate_wtc_pairings_team5(matrix):
 # ------------------ Streamlit App ------------------
 
 st.set_page_config(page_title="WTC Pairing Simulator", layout="wide")
-st.title("🎯 WTC Pairing Simulator – Teamgröße 5 (mit Namenswahl)")
+st.title("🎯 WTC Pairing Simulator – Teamgröße 5 mit Namen")
 
 st.markdown("""
-Gib deinen 5 Armeenamen und die 5 gegnerischen Armeen unten ein.  
-Dann ergänze die Matrix – oder nutze den Zufallstest.
+Gib deine 5 Armeenamen und die 5 gegnerischen Armeen ein.  
+Fülle dann die Matrix manuell oder lasse Testwerte automatisch generieren.
 """)
 
 # Eingabe der Namen
@@ -73,8 +74,9 @@ st.subheader("📊 Erwartungswert-Matrix")
 use_random = st.checkbox("✅ Testwerte automatisch füllen")
 
 if use_random:
+    np.random.seed(42)
     matrix = pd.DataFrame(
-        [[round(8 + 6 * i / 4 + j % 3) for j in range(5)] for i in range(5)],
+        np.random.randint(4, 16, size=(5, 5)),
         index=our_names,
         columns=their_names
     )
@@ -101,7 +103,7 @@ if matrix.isnull().values.any():
     st.stop()
 
 # Simulation starten
-top_n = st.slider("Wie viele Top-Pairings anzeigen?", 1, 50, 10)
+top_n = st.slider("Wie viele einzigartige Top-Pairings anzeigen?", 1, 50, 10)
 
 if st.button("🚀 Simulation starten"):
     with st.spinner("Berechne alle legitimen Pairings..."):
@@ -110,19 +112,30 @@ if st.button("🚀 Simulation starten"):
     if not results:
         st.error("❌ Keine gültigen Pairings gefunden.")
     else:
-        st.success(f"✅ {len(results)} gültige Pairings gefunden.")
+        # Nur inhaltlich unterschiedliche Pairings durch Set
+        seen = set()
+        unique_results = []
 
-        top = results[:top_n]
-        st.subheader(f"🏅 Top {top_n} Pairings")
+        for pairing, score in results:
+            key = tuple(sorted((o, t) for o, t in pairing))
+            if key not in seen:
+                seen.add(key)
+                unique_results.append((pairing, score))
+            if len(unique_results) >= top_n:
+                break
 
-        for i, (pairing, score) in enumerate(top, start=1):
+        st.success(f"✅ {len(unique_results)} eindeutige Pairings gefunden.")
+
+        st.subheader(f"🏅 Top {len(unique_results)} einzigartige Pairings")
+
+        for i, (pairing, score) in enumerate(unique_results, start=1):
             st.markdown(f"### 🧩 Pairing #{i} – Gesamtpunktzahl: `{score:.1f}`")
             for o, t in pairing:
                 st.markdown(f"- **{o}** vs **{t}** → `{matrix.loc[o, t]:.1f}`")
 
         st.subheader("📈 Balkendiagramm der Top Pairings")
-        labels = [" | ".join([f"{o} vs {t}" for o, t in p]) for p, _ in top]
-        scores = [s for _, s in top]
+        labels = [" | ".join([f"{o} vs {t}" for o, t in p]) for p, _ in unique_results]
+        scores = [s for _, s in unique_results]
         fig, ax = plt.subplots(figsize=(12, 6))
         ax.barh(range(len(scores)), scores, tick_label=labels)
         ax.set_xlabel("Gesamtpunktzahl")
