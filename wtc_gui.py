@@ -56,11 +56,13 @@ Keine Eingabe nötig. Du musst nur auf **"Simulation starten"** klicken.
 # Feste, funktionierende Testmatrix
 matrix = pd.DataFrame(
     {
-        "Enemy1": [12, 10, 15],
-        "Enemy2": [9, 12, 13],
-        "Enemy3": [13, 14, 11]
+        "Enemy1": [12, 10, 15, 13, 9],
+        "Enemy2": [9, 12, 13, 11, 10],
+        "Enemy3": [13, 14, 11, 12, 13],
+        "Enemy4": [11, 13, 12, 14, 10],
+        "Enemy5": [10, 11, 13, 9, 12]
     },
-    index=["Army1", "Army2", "Army3"]
+    index=["Army1", "Army2", "Army3", "Army4", "Army5"]
 )
 
 st.subheader("📊 Eingesetzte Matrix:")
