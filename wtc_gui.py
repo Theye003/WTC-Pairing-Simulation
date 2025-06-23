@@ -3,9 +3,9 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import itertools
 
-# ------------------ Hilfsfunktionen ------------------
+# ------------------ Neue WTC Simulation für Teamgröße 5 ------------------
 
-def simulate_wtc_pairings(matrix):
+def simulate_wtc_pairings_team5(matrix):
     results = []
     our_armies = list(matrix.index)
     their_armies = list(matrix.columns)
@@ -15,30 +15,35 @@ def simulate_wtc_pairings(matrix):
             our_rest = [a for a in our_armies if a != our_defender]
             their_rest = [e for e in their_armies if e != their_defender]
 
-            our_offers = list(itertools.combinations(our_rest, 2))
-            their_offers = list(itertools.combinations(their_rest, 2))
+            our_offer_pairs = list(itertools.combinations(our_rest, 2))
+            their_offer_pairs = list(itertools.combinations(their_rest, 2))
 
-            for our_pair in our_offers:
-                for their_pair in their_offers:
-                    for our_choice in our_pair:
-                        for their_choice in their_pair:
+            for our_offer in our_offer_pairs:
+                for their_offer in their_offer_pairs:
+                    for their_chosen in their_offer:
+                        for our_chosen in our_offer:
                             pairs = [
-                                (our_defender, their_choice),
-                                (their_defender, our_choice)
+                                (our_defender, their_chosen),
+                                (our_chosen, their_defender)
                             ]
-                            o_used = {our_defender, our_choice}
-                            t_used = {their_defender, their_choice}
-                            our_left = [a for a in our_rest if a not in o_used]
-                            their_left = [e for e in their_rest if e not in t_used]
 
-                            for perm in itertools.permutations(their_left):
-                                rest_pairs = list(zip(our_left, perm))
+                            used_our = {our_defender, our_chosen}
+                            used_their = {their_defender, their_chosen}
+
+                            our_remaining = [o for o in our_armies if o not in used_our]
+                            their_remaining = [t for t in their_armies if t not in used_their]
+
+                            if len(our_remaining) != 3 or len(their_remaining) != 3:
+                                continue
+
+                            for perm in itertools.permutations(their_remaining):
+                                rest_pairs = list(zip(our_remaining, perm))
                                 full_pairing = pairs + rest_pairs
                                 try:
                                     score = sum(matrix.loc[o, t] for o, t in full_pairing)
+                                    results.append((full_pairing, score))
                                 except KeyError:
                                     continue
-                                results.append((full_pairing, score))
 
     results.sort(key=lambda x: x[1], reverse=True)
     return results
@@ -46,14 +51,14 @@ def simulate_wtc_pairings(matrix):
 # ------------------ Streamlit App ------------------
 
 st.set_page_config(page_title="WTC Pairing Simulator", layout="wide")
-st.title("✅ WTC Pairing Simulator – Testmatrix Version")
+st.title("✅ WTC Pairing Simulator – Teamgröße 5 (fest)")
 
 st.markdown("""
-Diese Version verwendet eine fest eingebettete 3x3 Matrix.  
-Keine Eingabe nötig. Du musst nur auf **"Simulation starten"** klicken.
+Diese Version simuliert alle möglichen Pairings für zwei 5er-Teams im WTC-System.  
+Matrix und Teamgröße sind fest eingebaut – einfach auf „Simulation starten“ klicken!
 """)
 
-# Feste, funktionierende Testmatrix
+# Feste Matrix (gültig)
 matrix = pd.DataFrame(
     {
         "Enemy1": [12, 10, 15, 13, 9],
@@ -65,19 +70,19 @@ matrix = pd.DataFrame(
     index=["Army1", "Army2", "Army3", "Army4", "Army5"]
 )
 
-st.subheader("📊 Eingesetzte Matrix:")
-st.dataframe(matrix)
+st.subheader("📊 Eingesetzte Matrix (Erwartungswerte):")
+st.dataframe(matrix.style.background_gradient(axis=None, cmap="RdYlGn", low=0.2, high=0.8))
 
-top_n = st.slider("Wie viele Top-Pairings anzeigen?", 1, 20, 5)
+top_n = st.slider("Wie viele Top-Pairings anzeigen?", 1, 50, 10)
 
 if st.button("🚀 Simulation starten"):
-    with st.spinner("Berechne alle legitimen WTC-Pairings..."):
-        results = simulate_wtc_pairings(matrix)
+    with st.spinner("Berechne alle legitimen Pairings nach WTC-System..."):
+        results = simulate_wtc_pairings_team5(matrix)
 
     if not results:
-        st.error("❌ Keine gültigen Pairings gefunden. Matrix möglicherweise fehlerhaft.")
+        st.error("❌ Keine gültigen Pairings gefunden.")
     else:
-        st.success(f"✅ {len(results)} mögliche Pairings simuliert.")
+        st.success(f"✅ {len(results)} gültige Pairings gefunden.")
 
         top = results[:top_n]
         st.subheader(f"🏅 Top {top_n} Pairings")
@@ -88,10 +93,9 @@ if st.button("🚀 Simulation starten"):
                 st.markdown(f"- **{o}** vs **{t}** → `{matrix.loc[o, t]:.1f}`")
 
         st.subheader("📈 Balkendiagramm der Top Pairings")
-        import matplotlib.pyplot as plt
-        fig, ax = plt.subplots(figsize=(12, 6))
         labels = [" | ".join([f"{o} vs {t}" for o, t in p]) for p, _ in top]
         scores = [s for _, s in top]
+        fig, ax = plt.subplots(figsize=(12, 6))
         ax.barh(range(len(scores)), scores, tick_label=labels)
         ax.set_xlabel("Gesamtpunktzahl")
         ax.set_ylabel("Pairing")
