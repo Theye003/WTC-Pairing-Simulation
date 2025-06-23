@@ -50,7 +50,10 @@ def simulate_wtc_pairings(matrix):
                             for perm in itertools.permutations(their_left):
                                 rest_pairs = list(zip(our_left, perm))
                                 full_pairing = pairs + rest_pairs
-                                score = sum(matrix.loc[o, t] for o, t in full_pairing)
+                                try:
+                                    score = sum(matrix.loc[o, t] for o, t in full_pairing)
+                                except KeyError:
+                                    continue  # überspringe unvollständige oder fehlerhafte Pairings
                                 results.append((full_pairing, score))
 
     results.sort(key=lambda x: x[1], reverse=True)
