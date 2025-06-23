@@ -78,9 +78,10 @@ if uploaded_file:
 else:
     st.subheader("📝 Matrix-Eingabe (manuell)")
     default_matrix = pd.DataFrame(
-        [["" for _ in range(team_size)] for _ in range(team_size)],
-        index=army_names,
-        columns=enemy_names
+    [["" for _ in range(team_size)] for _ in range(team_size)],
+    index=army_names,
+    columns=enemy_names
+
     )
     edited_matrix = st.data_editor(
         default_matrix,
