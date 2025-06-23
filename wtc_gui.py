@@ -75,7 +75,7 @@ team_size = st.radio("Teamgröße auswählen:", [3, 5, 8], horizontal=True)
 army_names = [f"Army{i+1}" for i in range(team_size)]
 enemy_names = [f"Enemy{i+1}" for i in range(team_size)]
 
-# CSV Upload oder manuelle Eingabe
+# CSV Upload oder manueller Editor
 uploaded_file = st.file_uploader("📤 CSV-Datei hochladen (optional)", type="csv")
 
 if uploaded_file:
@@ -83,6 +83,7 @@ if uploaded_file:
     matrix = parse_matrix(raw_df)
     st.subheader("📊 Matrix aus Datei:")
     st.dataframe(raw_df)
+
 else:
     st.subheader("📝 Matrix-Eingabe (manuell)")
     
@@ -99,6 +100,7 @@ else:
         )
         st.success("✅ Beispielmatrix geladen.")
         st.dataframe(matrix)
+
     else:
         default_matrix = pd.DataFrame(
             [["" for _ in range(team_size)] for _ in range(team_size)],
@@ -108,39 +110,15 @@ else:
         edited_matrix = st.data_editor(default_matrix, use_container_width=True)
         matrix = parse_matrix(edited_matrix)
 
-        # Debug-Ausgaben
+        # Debug + Validierung
         st.write("📋 Zeilen:", matrix.index.tolist())
         st.write("📋 Spalten:", matrix.columns.tolist())
         st.write("🧪 Matrix-Werte:")
         st.dataframe(matrix)
 
-        # Validierung
         if matrix.isnull().values.any():
             st.error("❌ Matrix enthält leere oder ungültige Felder.")
             st.stop()
-
-
-    matrix = parse_matrix(edited_matrix)
-
-    st.write("🧪 Matrix-Index (Zeilen):", matrix.index.tolist())
-    st.write("🧪 Matrix-Spaltennamen:", matrix.columns.tolist())
-    st.write("🧪 Vorschau der Matrix:")
-    st.dataframe(matrix)
-    st.write("🧪 Leere oder ungültige Felder (NaN):")
-    st.dataframe(matrix.isnull())
-
-
-    # Validierungs-Checks
-    missing_rows = [name for name in army_names if name not in matrix.index]
-    missing_cols = [name for name in enemy_names if name not in matrix.columns]
-
-    if missing_rows or missing_cols:
-        st.error(f"❌ Matrix unvollständig!\nFehlende Zeilen: {missing_rows}\nFehlende Spalten: {missing_cols}")
-        st.stop()
-
-    if matrix.isnull().values.any():
-        st.error("❌ Matrix enthält leere oder ungültige Felder. Bitte alles ausfüllen.")
-        st.stop()
 
 # Vorschau
 st.subheader("🎨 Erwartungswert-Matrix mit Farbcodierung")
