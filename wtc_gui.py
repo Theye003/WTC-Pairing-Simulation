@@ -85,23 +85,40 @@ if uploaded_file:
     st.dataframe(raw_df)
 else:
     st.subheader("📝 Matrix-Eingabe (manuell)")
+    
+    use_demo = st.checkbox("✅ Testmatrix automatisch einfügen", value=True)
 
-    autofill = st.checkbox("Testmatrix automatisch ausfüllen")
-
-    if autofill:
-        test_matrix = pd.DataFrame(
-            np.random.randint(5, 20, size=(team_size, team_size)),
-            index=army_names,
-            columns=enemy_names
+    if use_demo:
+        matrix = pd.DataFrame(
+            {
+                "Enemy1": [12, 10, 15],
+                "Enemy2": [9, 12, 13],
+                "Enemy3": [13, 14, 11]
+            },
+            index=["Army1", "Army2", "Army3"]
         )
-        edited_matrix = st.data_editor(test_matrix, use_container_width=True)
+        st.success("✅ Beispielmatrix geladen.")
+        st.dataframe(matrix)
     else:
-        empty_matrix = pd.DataFrame(
+        default_matrix = pd.DataFrame(
             [["" for _ in range(team_size)] for _ in range(team_size)],
             index=army_names,
             columns=enemy_names
         )
-        edited_matrix = st.data_editor(empty_matrix, use_container_width=True)
+        edited_matrix = st.data_editor(default_matrix, use_container_width=True)
+        matrix = parse_matrix(edited_matrix)
+
+        # Debug-Ausgaben
+        st.write("📋 Zeilen:", matrix.index.tolist())
+        st.write("📋 Spalten:", matrix.columns.tolist())
+        st.write("🧪 Matrix-Werte:")
+        st.dataframe(matrix)
+
+        # Validierung
+        if matrix.isnull().values.any():
+            st.error("❌ Matrix enthält leere oder ungültige Felder.")
+            st.stop()
+
 
     matrix = parse_matrix(edited_matrix)
 
