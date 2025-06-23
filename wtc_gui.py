@@ -2,24 +2,8 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import itertools
-import numpy as np
 
 # ------------------ Hilfsfunktionen ------------------
-
-def parse_cell(value):
-    if isinstance(value, str) and "-" in value:
-        try:
-            low, high = map(float, value.strip().split("-"))
-            return (low + high) / 2
-        except:
-            return float('nan')
-    try:
-        return float(value)
-    except:
-        return float('nan')
-
-def parse_matrix(raw_df):
-    return raw_df.applymap(parse_cell)
 
 def simulate_wtc_pairings(matrix):
     results = []
@@ -62,80 +46,36 @@ def simulate_wtc_pairings(matrix):
 # ------------------ Streamlit App ------------------
 
 st.set_page_config(page_title="WTC Pairing Simulator", layout="wide")
-st.title("🔮 WTC Pairing Simulator")
+st.title("✅ WTC Pairing Simulator – Testmatrix Version")
 
 st.markdown("""
-Wähle die Teamgröße und gib die Matchup-Matrix ein.  
-Du kannst Zahlen (`12`) oder Spannen (`9-13`) eingeben.  
-Spaltennamen (`Enemy1...`) und Zeilennamen (`Army1...`) dürfen nicht verändert werden.
+Diese Version verwendet eine fest eingebettete 3x3 Matrix.  
+Keine Eingabe nötig. Du musst nur auf **"Simulation starten"** klicken.
 """)
 
-# Teamgröße
-team_size = st.radio("Teamgröße auswählen:", [3, 5, 8], horizontal=True)
-army_names = [f"Army{i+1}" for i in range(team_size)]
-enemy_names = [f"Enemy{i+1}" for i in range(team_size)]
+# Feste, funktionierende Testmatrix
+matrix = pd.DataFrame(
+    {
+        "Enemy1": [12, 10, 15],
+        "Enemy2": [9, 12, 13],
+        "Enemy3": [13, 14, 11]
+    },
+    index=["Army1", "Army2", "Army3"]
+)
 
-# CSV Upload oder manueller Editor
-uploaded_file = st.file_uploader("📤 CSV-Datei hochladen (optional)", type="csv")
+st.subheader("📊 Eingesetzte Matrix:")
+st.dataframe(matrix)
 
-if uploaded_file:
-    raw_df = pd.read_csv(uploaded_file, index_col=0)
-    matrix = parse_matrix(raw_df)
-    st.subheader("📊 Matrix aus Datei:")
-    st.dataframe(raw_df)
+top_n = st.slider("Wie viele Top-Pairings anzeigen?", 1, 20, 5)
 
-else:
-    st.subheader("📝 Matrix-Eingabe (manuell)")
-    
-    use_demo = st.checkbox("✅ Testmatrix automatisch einfügen", value=True)
-
-    if use_demo:
-        matrix = pd.DataFrame(
-            {
-                "Enemy1": [12, 10, 15],
-                "Enemy2": [9, 12, 13],
-                "Enemy3": [13, 14, 11]
-            },
-            index=["Army1", "Army2", "Army3"]
-        )
-        st.success("✅ Beispielmatrix geladen.")
-        st.dataframe(matrix)
-
-    else:
-        default_matrix = pd.DataFrame(
-            [["" for _ in range(team_size)] for _ in range(team_size)],
-            index=army_names,
-            columns=enemy_names
-        )
-        edited_matrix = st.data_editor(default_matrix, use_container_width=True)
-        matrix = parse_matrix(edited_matrix)
-
-        # Debug + Validierung
-        st.write("📋 Zeilen:", matrix.index.tolist())
-        st.write("📋 Spalten:", matrix.columns.tolist())
-        st.write("🧪 Matrix-Werte:")
-        st.dataframe(matrix)
-
-        if matrix.isnull().values.any():
-            st.error("❌ Matrix enthält leere oder ungültige Felder.")
-            st.stop()
-
-# Vorschau
-st.subheader("🎨 Erwartungswert-Matrix mit Farbcodierung")
-styled = matrix.style.background_gradient(axis=None, cmap="RdYlGn", low=0.2, high=0.8)
-st.dataframe(styled, use_container_width=True)
-
-top_n = st.slider("Wie viele Top-Pairings anzeigen?", 1, 50, min(10, team_size * 5))
-
-# Simulation starten
 if st.button("🚀 Simulation starten"):
     with st.spinner("Berechne alle legitimen WTC-Pairings..."):
         results = simulate_wtc_pairings(matrix)
 
     if not results:
-        st.error("⚠️ Keine gültigen Pairings gefunden. Bitte überprüfe die Matrix.")
+        st.error("❌ Keine gültigen Pairings gefunden. Matrix möglicherweise fehlerhaft.")
     else:
-        st.success(f"{len(results)} mögliche Pairings simuliert.")
+        st.success(f"✅ {len(results)} mögliche Pairings simuliert.")
 
         top = results[:top_n]
         st.subheader(f"🏅 Top {top_n} Pairings")
@@ -146,6 +86,7 @@ if st.button("🚀 Simulation starten"):
                 st.markdown(f"- **{o}** vs **{t}** → `{matrix.loc[o, t]:.1f}`")
 
         st.subheader("📈 Balkendiagramm der Top Pairings")
+        import matplotlib.pyplot as plt
         fig, ax = plt.subplots(figsize=(12, 6))
         labels = [" | ".join([f"{o} vs {t}" for o, t in p]) for p, _ in top]
         scores = [s for _, s in top]
