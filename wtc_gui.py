@@ -108,6 +108,7 @@ else:
     st.write("🧪 Matrix-Index (Zeilen):", matrix.index.tolist())
     st.write("🧪 Matrix-Spaltennamen:", matrix.columns.tolist())
     st.write("🧪 Vorschau der Matrix:")
+    st.dataframe(matrix)
     st.write("🧪 Leere oder ungültige Felder (NaN):")
     st.dataframe(matrix.isnull())
 
