@@ -105,6 +105,12 @@ else:
 
     matrix = parse_matrix(edited_matrix)
 
+    st.write("🧪 Matrix-Index (Zeilen):", matrix.index.tolist())
+    st.write("🧪 Matrix-Spaltennamen:", matrix.columns.tolist())
+    st.write("🧪 Vorschau der Matrix:")
+    st.dataframe(matrix)
+
+
     # Validierungs-Checks
     missing_rows = [name for name in army_names if name not in matrix.index]
     missing_cols = [name for name in enemy_names if name not in matrix.columns]
